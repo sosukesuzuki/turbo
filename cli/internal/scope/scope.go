@@ -73,6 +73,10 @@ func AddFlags(opts *Opts, flags *pflag.FlagSet) {
 	flags.StringArrayVar(&opts.IgnorePatterns, "ignore", nil, _ignoreHelp)
 	flags.StringArrayVar(&opts.GlobalDepPatterns, "global-deps", nil, _globalDepHelp)
 	flags.StringVar(&opts.PackageInferenceRoot, "infer-filter-root", "", "Use the given monorepo-relative path as the basis for inferring tasks")
+	if err := flags.MarkHidden("infer-filter-root"); err != nil {
+		// Crash early if we've messed up our flag setup
+		panic(err)
+	}
 	addLegacyFlags(&opts.LegacyFilter, flags)
 }
 

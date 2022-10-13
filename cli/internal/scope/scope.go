@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/vercel/turborepo/cli/internal/context"
 	"github.com/vercel/turborepo/cli/internal/fs"
+	"github.com/vercel/turborepo/cli/internal/packagemanager"
 	"github.com/vercel/turborepo/cli/internal/scm"
 	scope_filter "github.com/vercel/turborepo/cli/internal/scope/filter"
 	"github.com/vercel/turborepo/cli/internal/turbopath"
@@ -64,7 +65,8 @@ turbo's documentation https://turborepo.org/docs/reference/command-line-referenc
 --filter can be specified multiple times. Packages that
 match any filter will be included.`
 	_ignoreHelp    = `Files to ignore when calculating changed files (i.e. --since). Supports globs.`
-	_globalDepHelp = `Specify glob of global filesystem dependencies to be hashed. Useful for .env and files in the root directory.`
+	_globalDepHelp = `Specify glob of global filesystem dependencies to be hashed. Useful for .env and files
+in the root directory. Includes turbo.json, root package.json, and the root lockfile by default.`
 )
 
 // AddFlags adds the flags relevant to this package to the given FlagSet
@@ -129,7 +131,7 @@ func ResolvePackages(opts *Opts, repoRoot turbopath.AbsoluteSystemPath, scm scm.
 		PackageInfos:           ctx.PackageInfos,
 		Cwd:                    repoRoot,
 		Inference:              inferenceBase,
-		PackagesChangedInRange: opts.getPackageChangeFunc(scm, repoRoot.ToStringDuringMigration(), ctx.PackageInfos),
+		PackagesChangedInRange: opts.getPackageChangeFunc(scm, repoRoot.ToStringDuringMigration(), ctx.PackageInfos, ctx.PackageManager),
 	}
 	filterPatterns := opts.FilterPatterns
 	legacyFilterPatterns := opts.LegacyFilter.asFilterPatterns()
@@ -190,7 +192,7 @@ func calculateInference(repoRoot turbopath.AbsoluteSystemPath, rawPkgInferenceDi
 	}, nil
 }
 
-func (o *Opts) getPackageChangeFunc(scm scm.SCM, cwd string, packageInfos map[interface{}]*fs.PackageJSON) scope_filter.PackagesChangedInRange {
+func (o *Opts) getPackageChangeFunc(scm scm.SCM, cwd string, packageInfos map[interface{}]*fs.PackageJSON, packageManager *packagemanager.PackageManager) scope_filter.PackagesChangedInRange {
 	return func(fromRef string, toRef string) (util.Set, error) {
 		// We could filter changed files at the git level, since it's possible
 		// that the changes we're interested in are scoped, but we need to handle
@@ -204,7 +206,7 @@ func (o *Opts) getPackageChangeFunc(scm scm.SCM, cwd string, packageInfos map[in
 			}
 			changedFiles = scmChangedFiles
 		}
-		if hasRepoGlobalFileChanged, err := repoGlobalFileHasChanged(o, changedFiles); err != nil {
+		if hasRepoGlobalFileChanged, err := repoGlobalFileHasChanged(o, getDefaultGlobalDeps(packageManager), changedFiles); err != nil {
 			return nil, err
 		} else if hasRepoGlobalFileChanged {
 			allPkgs := make(util.Set)
@@ -222,8 +224,22 @@ func (o *Opts) getPackageChangeFunc(scm scm.SCM, cwd string, packageInfos map[in
 	}
 }
 
-func repoGlobalFileHasChanged(opts *Opts, changedFiles []string) (bool, error) {
-	globalDepsGlob, err := filter.Compile(opts.GlobalDepPatterns)
+func getDefaultGlobalDeps(packageManager *packagemanager.PackageManager) []string {
+	// include turbo.json, root package.json, and root lockfile as implicit global dependencies
+	defaultGlobalDeps := []string{
+		"turbo.json",
+		"package.json",
+	}
+	if packageManager != nil {
+		// TODO: we should be smarter here and determine if the lockfile changes actually impact the given scope
+		defaultGlobalDeps = append(defaultGlobalDeps, packageManager.Lockfile)
+	}
+
+	return defaultGlobalDeps
+}
+
+func repoGlobalFileHasChanged(opts *Opts, defaultGlobalDeps []string, changedFiles []string) (bool, error) {
+	globalDepsGlob, err := filter.Compile(append(opts.GlobalDepPatterns, defaultGlobalDeps...))
 	if err != nil {
 		return false, errors.Wrap(err, "invalid global deps glob")
 	}

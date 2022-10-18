@@ -202,6 +202,7 @@ func (r *run) run(ctx gocontext.Context, targets []string) error {
 			return err
 		}
 	}
+
 	if ui.IsCI && !r.opts.runOpts.noDaemon {
 		r.base.Logger.Info("skipping turbod since we appear to be in a non-interactive context")
 	} else if !r.opts.runOpts.noDaemon {
@@ -268,10 +269,10 @@ func (r *run) run(ctx gocontext.Context, targets []string) error {
 	// TODO: consolidate some of these arguments
 	g := &completeGraph{
 		TopologicalGraph: pkgDepGraph.TopologicalGraph,
-		Pipeline:         pipeline,
 		PackageInfos:     pkgDepGraph.PackageInfos,
-		GlobalHash:       globalHash,
 		RootNode:         pkgDepGraph.RootNode,
+		Pipeline:         pipeline,
+		GlobalHash:       globalHash,
 	}
 	rs := &runSpec{
 		Targets:      targets,
@@ -477,6 +478,7 @@ func buildTaskGraphEngine(topoGraph *dag.AcyclicGraph, pipeline fs.Pipeline, rs 
 		topoDeps := make(util.Set)
 		deps := make(util.Set)
 		isPackageTask := util.IsPackageTask(taskName)
+
 		for _, dependency := range taskDefinition.TaskDependencies {
 			if isPackageTask && util.IsPackageTask(dependency) {
 				err := engine.AddDep(dependency, taskName)
@@ -487,24 +489,32 @@ func buildTaskGraphEngine(topoGraph *dag.AcyclicGraph, pipeline fs.Pipeline, rs 
 				deps.Add(dependency)
 			}
 		}
+
 		for _, dependency := range taskDefinition.TopologicalDependencies {
 			topoDeps.Add(dependency)
 		}
+
 		engine.AddTask(&core.Task{
-			Name:     taskName,
-			TopoDeps: topoDeps,
-			Deps:     deps,
+			Name:       taskName,
+			TopoDeps:   topoDeps,
+			Persistent: taskDefinition.Persistent,
+			Deps:       deps,
 		})
 	}
 
-	if err := engine.Prepare(&core.EngineExecutionOptions{
+	engineOptions := &core.EngineExecutionOptions{
 		Packages:  rs.FilteredPkgs.UnsafeListOfStrings(),
 		TaskNames: rs.Targets,
 		TasksOnly: rs.Opts.runOpts.only,
-	}); err != nil {
+	}
+
+	if err := engine.Prepare(engineOptions); err != nil {
 		return nil, err
 	}
 
+	// TaskGraph is a DAG with string references, not the full pipeline.
+	// We need to do some validatio of the TaskGraph _while_ looking at the
+	// information in engine.pipeline, which has the Persistent field.
 	if err := util.ValidateGraph(engine.TaskGraph); err != nil {
 		return nil, fmt.Errorf("Invalid task dependency graph:\n%v", err)
 	}

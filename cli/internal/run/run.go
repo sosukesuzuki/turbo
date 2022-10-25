@@ -110,6 +110,9 @@ func GetCmd(helper *cmdutil.Helper, signalWatcher *signals.Watcher) *cobra.Comma
 			if len(tasks) == 0 {
 				return errors.New("at least one task must be specified")
 			}
+			_, packageMode := packagemanager.InferRoot(base.RepoRoot)
+			opts.runOpts.singlePackage = packageMode == packagemanager.Single
+
 			opts.runOpts.passThroughArgs = passThroughArgs
 			run := configureRun(base, opts, signalWatcher)
 			ctx := cmd.Context()
@@ -226,7 +229,7 @@ func (r *run) run(ctx gocontext.Context, targets []string) error {
 		return err
 	}
 
-	scmInstance, err := scm.FromInRepo(r.base.RepoRoot.ToStringDuringMigration())
+	scmInstance, err := scm.FromInRepo(r.base.RepoRoot)
 	if err != nil {
 		if errors.Is(err, scm.ErrFallback) {
 			r.base.LogWarning("", err)

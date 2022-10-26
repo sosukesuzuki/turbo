@@ -222,7 +222,8 @@ fn get_version() -> &'static str {
 
 fn main() -> Result<()> {
     let clap_args = Args::parse();
-    // --version flag doesn't work with ignore_errors in clap, so we have to handle it manually
+    // --version flag doesn't work with ignore_errors in clap, so we have to handle
+    // it manually
     if clap_args.version {
         println!("{}", get_version());
         process::exit(0);

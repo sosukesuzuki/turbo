@@ -214,10 +214,9 @@ pub struct NodeJsOperation {
 
 impl NodeJsOperation {
     fn process_mut(&mut self) -> Result<&mut RunningNodeJsPoolProcess> {
-        Ok(self
-            .process
+        self.process
             .as_mut()
-            .context("Node.js operation already finished")?)
+            .context("Node.js operation already finished")
     }
 
     pub(super) async fn recv<M>(&mut self) -> Result<M>
@@ -229,18 +228,17 @@ impl NodeJsOperation {
             .recv()
             .await
             .context("receiving message")?;
-        Ok(serde_json::from_slice(&message).context("deserializing message")?)
+        serde_json::from_slice(&message).context("deserializing message")
     }
 
     pub(super) async fn send<M>(&mut self, message: M) -> Result<()>
     where
         M: Serialize,
     {
-        Ok(self
-            .process_mut()?
+        self.process_mut()?
             .send(serde_json::to_vec(&message).context("serializing message")?)
             .await
-            .context("sending message")?)
+            .context("sending message")
     }
 
     pub(super) async fn wait_or_kill(mut self) -> Result<ExitStatus> {

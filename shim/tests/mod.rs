@@ -12,7 +12,7 @@ fn test_find_correct_turbo() {
         .code(1);
 
     let mut cmd = Command::cargo_bin("turbo").unwrap();
-    cmd.args(&["--cwd", "../examples/basic", "bin"])
+    cmd.args(["--cwd", "../examples/basic", "bin"])
         .assert()
         .append_context(
             "turbo",
@@ -29,7 +29,7 @@ fn test_find_correct_turbo() {
         ));
 
     let mut cmd = Command::cargo_bin("turbo").unwrap();
-    cmd.args(&["--cwd", "..", "bin"])
+    cmd.args(["--cwd", "..", "bin"])
         .assert()
         .append_context(
             "turbo",

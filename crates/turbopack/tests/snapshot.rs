@@ -192,9 +192,9 @@ async fn run(resource: &'static str) -> Result<()> {
             .map(|module| async move {
                 if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
                     // TODO: Load runtime entries from snapshots
-                    Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), runtime_entries))
+                    Ok(ecmascript.as_evaluated_chunk(chunking_context, runtime_entries))
                 } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                    Ok(chunkable.as_chunk(chunking_context.into()))
+                    Ok(chunkable.as_chunk(chunking_context))
                 } else {
                     // TODO convert into a serve-able asset
                     Err(anyhow!(

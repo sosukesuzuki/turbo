@@ -100,11 +100,11 @@ jobs:
 
       - name: Build
         if: ${{ !matrix.settings.docker }}
-        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+        run: ${{ matrix.settings.rustflags }} cargo build --release -p turbo --target ${{ matrix.settings.target }}
 
       - name: Build in Docker
         if: ${{ matrix.settings.docker }}
-        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+        run: ${{ matrix.settings.rustflags }} cargo build --release -p turbo --target ${{ matrix.settings.target }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
